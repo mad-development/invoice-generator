@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jung-kurt/gofpdf"
@@ -67,12 +68,31 @@ func main() {
 	value := flag.Float64("value", 0.0, "Invoice value")
 	client := flag.String("client", "", "Client name")
 	invoiceID := flag.String("id", "", "Invoice ID")
+	services := flag.String("services", "", "Comma separated list of services in the format 'name:price'")
 
 	flag.Parse()
 
-	if *day == 0 || *month == 0 || *year == 0 || *value == 0.0 || *client == "" || *invoiceID == "" {
+	if *day == 0 || *month == 0 || *year == 0 || *value == 0.0 || *client == "" || *invoiceID == "" || *services == "" {
 		fmt.Println("Please provide all required parameters.")
 		return
+	}
+
+	serviceList := make(map[string]float64)
+	servicePairs := strings.Split(*services, ",")
+	for _, pair := range servicePairs {
+		splitPair := strings.Split(pair, ":")
+		if len(splitPair) != 2 {
+			fmt.Printf("Invalid service: %s\n", pair)
+			return
+		}
+		serviceName := splitPair[0]
+		var servicePrice float64
+		_, err := fmt.Sscanf(splitPair[1], "%f", &servicePrice)
+		if err != nil {
+			fmt.Printf("Invalid price for service: %s\n", pair)
+			return
+		}
+		serviceList[serviceName] = servicePrice
 	}
 
 	date := time.Date(*year, time.Month(*month), *day, 0, 0, 0, 0, time.UTC)
@@ -83,11 +103,7 @@ func main() {
 		currency:  "USD",
 		client:    *client,
 		invoiceID: *invoiceID,
-		services: map[string]float64{
-			"Service 1": 100.0,
-			"Service 2": 75.0,
-			"Service 3": 25.5,
-		},
+		services:  serviceList,
 	}
 
 	invoice.GeneratePDF()
